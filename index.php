@@ -16,16 +16,36 @@
 
 	<div class="top left">
       <div ng-controller="TimeCtrl">
-        <div class="date small dimmed">{{ clock | date:'EEE MMM d y' }}</div>
+        <div class="date small dimmed">{{ clock | date:'EEEE, MMMM d y' }}</div>
         <div class="time">{{ clock | date:'HH:mm' }}<span class="sec">{{ clock | date:'ss' }}</span></div>
+      </div>
+      <div ng-controller="CalCtrl">
         <div class="calendar xxsmall">{{ calendar }}</div>
       </div>
     </div>
 
 	<div class="top right">
-        <div class="windsun small dimmed">{{ windsun }}</div>
-        <div class="temp">{{ temp }}</div>
-        <div class="forecast small dimmed">{{ forecast }}</div>
+      <div ng-controller="WeatherCtrl">
+        <div class="windsun small dimmed">
+          <span style="opacity: {{ sun.sunriseOpacity }}">
+            <span class="wi wi-sunrise xdimmed"></span> {{ sun.sunrise | date: 'HH:mm' }}
+          </span>
+          <span style="opacity: {{ sun.sunsetOpacity }}">
+            <span class="wi wi-sunset xdimmed"></span> {{ sun.sunset | date: 'HH:mm' }}
+          </span>
+        </div>
+        <div class="temp"><span class="icon dimmed wi {{ temp.icon }}"></span>{{ temp.temp + '&deg;' }}</div>
+        <div class="forecast small dimmed">
+          <table class="forecast-table">
+            <tr ng-repeat="i in forecast" style="opacity: {{ i.opacity }}">
+              <td class="day">{{ i.date | date: 'EEE' }}</td>
+              <td class="icon-small {{ i.icon }}"></td>
+              <td class="temp-max">{{ i.temp_max }}</td>
+              <td class="temp-min">{{ i.temp_min }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
     </div>
 
 	<div class="center-ver center-hor"></div>
@@ -44,14 +64,51 @@
     <script src="js/config.js"></script>
 
     <script>
+var iconTable = {
+    '01d':'wi-day-sunny',
+    '02d':'wi-day-cloudy',
+    '03d':'wi-cloudy',
+    '04d':'wi-cloudy-windy',
+    '09d':'wi-showers',
+    '10d':'wi-rain',
+    '11d':'wi-thunderstorm',
+    '13d':'wi-snow',
+    '50d':'wi-fog',
+    '01n':'wi-night-clear',
+    '02n':'wi-night-cloudy',
+    '03n':'wi-night-cloudy',
+    '04n':'wi-night-cloudy',
+    '09n':'wi-night-showers',
+    '10n':'wi-night-rain',
+    '11n':'wi-night-thunderstorm',
+    '13n':'wi-night-snow',
+    '50n':'wi-night-alt-cloudy-windy'
+};
 var app = angular.module('mirror', []);
 app.controller('init', function ($scope) {});
 app.controller('TimeCtrl', function ($scope, $interval) {
-    var tick = function() {
+    var tick = function () {
         $scope.clock = new Date();
     }
     tick();
     $interval(tick, 1000);
+});
+app.controller('CalCtrl', function ($scope, $interval, $http) {
+    var update = function () {
+        $http.get('calendar.php?url=' + encodeURIComponent(calendarFeed)).
+            then(function (response) {
+                if ('OK' == response.statusText) {
+                    console.log(response.data);
+                } else {
+                    console.log(response.statusText);
+                }
+            }, function (response) {
+                console.log('error');
+                console.log(response);
+            });
+    }
+    update();
+    $interval(update, 60000);
 });
 app.controller('FuzzyCtrl', function ($scope, $interval) {
     var warmFuzzy = function () {
@@ -75,6 +132,74 @@ app.controller('FuzzyCtrl', function ($scope, $interval) {
     }
     warmFuzzy();
     $interval(warmFuzzy, 30000);
+});
+app.controller('WeatherCtrl', function ($scope, $http, $interval) {
+    var weather = function () {
+        $http({
+            method: 'get',
+            url: 'http://api.openweathermap.org/data/2.5/weather',
+            params: weatherParams
+        }).then(function (response) {
+            if (response && response.data && response.data.main) {
+                var temp = {
+                    'temp': Math.round(response.data.main.temp * 10) / 10,
+                    'min': Math.round(response.data.main.temp_min * 10) / 10,
+                    'max': Math.round(response.data.main.temp_max * 10) / 10,
+                    'icon': iconTable[response.data.weather[0].icon]
+                };
+                $scope.temp = temp;
+
+                var sun = {
+                    'sunrise': new Date(response.data.sys.sunrise * 1000),
+                    'sunset': new Date(response.data.sys.sunset * 1000),
+                    'now': new Date(),
+                    'sunriseOpacity': 0.5,
+                    'sunsetOpacity': 0.5
+                };
+                if (sun.now < sun.sunrise) {
+                    sun.sunriseOpacity = 1;
+                } else if (sun.now < sun.sunset) {
+                    sun.sunsetOpacity = 1;
+                }
+                $scope.sun = sun;
+            }
+        }, function (response) {
+            console.log(response);
+        });
+    }
+    weather();
+    $interval(weather, 60000);
+
+    var forecast = function () {
+        $http({
+            method: 'get',
+            url: 'http://api.openweathermap.org/data/2.5/forecast/daily',
+            params: weatherParams
+        }).then(function (response) {
+            if (response && response.data && response.data.list) {
+                var forecastData = [];
+                var opacity = 1;
+                for (var i in response.data.list) {
+                    var row = response.data.list[i];
+                    forecastData.push({
+                        'timestamp': row.dt,
+                        'date': new Date(row.dt * 1000),
+                        'icon': iconTable[row.weather[0].icon],
+                        'temp_min': Math.round(row.temp.min * 10) / 10,
+                        'temp_max': Math.round(row.temp.max * 10) / 10,
+                        'opacity': opacity
+                    });
+                    opacity -= 0.155;
+                }
+                $scope.forecast = forecastData;
+            }
+        }, function (response) {
+            console.log('error');
+            console.log(response);
+        });
+    }
+    forecast();
+    $interval(forecast, 60000);
 });
     </script>
 </body>
