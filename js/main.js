@@ -76,20 +76,6 @@ jQuery(document).ready(function($) {
 		}, 3000);
 	})();
 
-	(function updateTime()
-	{
-        var now = moment();
-        var date = now.format('LLLL').split(' ',4);
-        date = date[0] + ' ' + date[1] + ' ' + date[2] + ' ' + date[3];
-
-		$('.date').html(date);
-		$('.time').html(now.format('HH') + ':' + now.format('mm') + '<span class="sec">'+now.format('ss')+'</span>');
-
-		setTimeout(function() {
-			updateTime();
-		}, 1000);
-	})();
-
 	(function updateCalendarData()
 	{
 		new ical_parser("calendar.php", function(cal){
@@ -198,33 +184,6 @@ jQuery(document).ready(function($) {
 		setTimeout(function() {
         	updateCalendar();
         }, 1000);
-	})();
-
-	(function updateCompliment()
-	{
-        //see compliments.js
-		while (compliment == lastCompliment) {
-     
-      //Check for current time  
-      var compliments;
-      var date = new Date();
-      var hour = date.getHours();
-      //set compliments to use
-      if (hour >= 3 && hour < 12) compliments = morning;
-      if (hour >= 12 && hour < 17) compliments = afternoon;
-      if (hour >= 17 || hour < 3) compliments = evening;
-
-		compliment = Math.floor(Math.random()*compliments.length);
-		}
-
-		$('.compliment').updateWithText(compliments[compliment], 4000);
-
-		lastCompliment = compliment;
-
-		setTimeout(function() {
-			updateCompliment(true);
-		}, 30000);
-
 	})();
 
 	(function updateCurrentWeather()
