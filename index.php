@@ -25,7 +25,7 @@
     </div>
 
 	<div class="top right">
-      <div ng-controller="WeatherCtrl">
+      <div class="fade" ng-controller="WeatherCtrl" ng-show="temp.show">
         <div class="windsun small dimmed">
           <span ng-style="sun.sunriseStyle">
             <span class="wi wi-sunrise xdimmed"></span> {{ sun.sunrise | date: 'HH:mm' }}
@@ -147,10 +147,13 @@ app.controller('FuzzyCtrl', function ($scope, $interval, $timeout) {
         };
         $timeout(function () { $scope.compliment.show = false; }, 25000);
     }
-    warmFuzzy();
+    $timeout(warmFuzzy, 5000);
     $interval(warmFuzzy, 30000);
 });
-app.controller('WeatherCtrl', function ($scope, $http, $interval) {
+app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
+    $scope.temp = {
+        show: false
+    };
     var weather = function () {
         $http({
             method: 'get',
@@ -162,7 +165,8 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval) {
                     'temp': Math.round(response.data.main.temp * 10) / 10,
                     'min': Math.round(response.data.main.temp_min * 10) / 10,
                     'max': Math.round(response.data.main.temp_max * 10) / 10,
-                    'icon': iconTable[response.data.weather[0].icon]
+                    'icon': iconTable[response.data.weather[0].icon],
+                    'show': true
                 };
                 $scope.temp = temp;
 
@@ -188,7 +192,7 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval) {
             console.log(response);
         });
     }
-    weather();
+    $timeout(weather, 3000);
     $interval(weather, 60000);
 
     var forecast = function () {
@@ -216,7 +220,7 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval) {
             console.log(response);
         });
     }
-    forecast();
+    $timeout(forecast, 2000);
     $interval(forecast, 60000);
 });
 app.controller('NewsCtrl', ['$scope', '$interval', 'FeedService', function ($scope, $interval, Feed) {
