@@ -25,7 +25,7 @@
     </div>
 
 	<div class="top right">
-      <div class="fade" ng-controller="WeatherCtrl" ng-show="temp.show">
+      <div class="fade" ng-controller="WeatherCtrl" ng-show="show">
         <div class="windsun small dimmed">
           <span ng-style="sun.sunriseStyle">
             <span class="wi wi-sunrise xdimmed"></span> {{ sun.sunrise | date: 'HH:mm' }}
@@ -52,13 +52,13 @@
 
 	<div class="lower-third center-hor">
       <div ng-controller="FuzzyCtrl">
-        <div class="fade compliment light" ng-show="compliment.show">{{ compliment.text }}</div>
+        <div class="fade compliment light" ng-repeat="compliment in compliments">{{ compliment }}</div>
       </div>
     </div>
 
 	<div class="bottom center-hor">
       <div ng-controller="NewsCtrl">
-        <div class="news medium">{{ news }}</div>
+        <div class="fade news medium" ng-repeat="news in newss">{{ news }}</div>
       </div>
     </div>
 
@@ -117,16 +117,10 @@ app.controller('CalCtrl', function ($scope, $interval, $http) {
     $interval(update, 60000);
 });
 app.controller('FuzzyCtrl', function ($scope, $interval, $timeout) {
-    $scope.compliment = {
-        show: false,
-        text: ''
-    };
+    $scope.compliments = [];
     var warmFuzzy = function () {
-        if ($scope.compliment.show) {
-            return $scope.compliment.show = false;
-        }
-        var compliments;
         var compliment;
+        var compliments;
         var date = new Date();
         var hour = date.getHours();
         if (3 <= hour && hour < 12) {
@@ -139,21 +133,17 @@ app.controller('FuzzyCtrl', function ($scope, $interval, $timeout) {
 
         do {
             compliment = Math.floor(Math.random() * compliments.length);
-        } while (compliments[compliment] == $scope.compliment.text);
+        } while ($scope.compliments.indexOf(compliments[compliment]) != -1);
 
-        $scope.compliment = {
-            show: !$scope.compliment.show,
-            text: compliments[compliment]
-        };
-        $timeout(function () { $scope.compliment.show = false; }, 25000);
+        $scope.compliments = [];
+        $timeout(function () {
+            $scope.compliments.push(compliments[compliment]);
+        }, 1000);
     }
-    $timeout(warmFuzzy, 5000);
+    $timeout(warmFuzzy, 2500);
     $interval(warmFuzzy, 30000);
 });
 app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
-    $scope.temp = {
-        show: false
-    };
     var weather = function () {
         $http({
             method: 'get',
@@ -165,8 +155,7 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
                     'temp': Math.round(response.data.main.temp * 10) / 10,
                     'min': Math.round(response.data.main.temp_min * 10) / 10,
                     'max': Math.round(response.data.main.temp_max * 10) / 10,
-                    'icon': iconTable[response.data.weather[0].icon],
-                    'show': true
+                    'icon': iconTable[response.data.weather[0].icon]
                 };
                 $scope.temp = temp;
 
@@ -188,12 +177,11 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
                 }
                 $scope.sun = sun;
             }
+            $scope.show = true;
         }, function (response) {
             console.log(response);
         });
     }
-    $timeout(weather, 3000);
-    $interval(weather, 60000);
 
     var forecast = function () {
         $http({
@@ -220,31 +208,42 @@ app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
             console.log(response);
         });
     }
-    $timeout(forecast, 2000);
-    $interval(forecast, 60000);
+    forecast();
+    weather();
+    $interval(function () {
+        forecast();
+        weather();
+    }, 60000);
 });
-app.controller('NewsCtrl', ['$scope', '$interval', 'FeedService', function ($scope, $interval, Feed) {
-    var news = [];
+app.controller('NewsCtrl', ['$scope', '$interval', '$timeout', 'FeedService', function ($scope, $interval, $timeout, Feed) {
+    $scope.newss = [];
+    var stories = [];
     var headline = 0;
     var update = function () {
-        news = [];
+        stories = [];
         Feed.parseFeed(feed).
             then(function (response) {
                 for (var i in response.data.responseData.feed.entries) {
-                    news.push(response.data.responseData.feed.entries[i].title);
+                    if (response.data.responseData.feed.entries[i].title) {
+                        stories.push(response.data.responseData.feed.entries[i].title);
+                    }
                 }
             }, function (response) {
                 console.log('error');
                 console.log(response);
             });
     };
-    update();
     var rotate = function () {
-        $scope.news = news[headline++ % news.length];
+        $scope.newss = [];
+        if (stories.length) {
+            $timeout(function () {
+                $scope.newss.push(stories[headline++ % stories.length]);
+            }, 1000);
+        }
     };
-    rotate();
+    update();
     $interval(update, 300000);
-    $interval(rotate, 10000);
+    $interval(rotate, 5500);
 }]);
 app.factory('FeedService', ['$http', function ($http) {
     return {
