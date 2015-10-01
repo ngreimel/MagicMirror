@@ -1,216 +1,200 @@
-jQuery.fn.updateWithText = function(text, speed)
-{
-	var dummy = $('<div/>').html(text);
+"use strict";
 
-	if ($(this).html() != dummy.html())
-	{
-		$(this).fadeOut(speed/2, function() {
-			$(this).html(text);
-			$(this).fadeIn(speed/2, function() {
-				//done
-			});
-		});
-	}
-}
-
-jQuery.fn.outerHTML = function(s) {
-    return s
-        ? this.before(s).remove()
-        : jQuery("<p>").append(this.eq(0).clone()).html();
+var iconTable = {
+    '01d':'wi-day-sunny',
+    '02d':'wi-day-cloudy',
+    '03d':'wi-cloudy',
+    '04d':'wi-cloudy-windy',
+    '09d':'wi-showers',
+    '10d':'wi-rain',
+    '11d':'wi-thunderstorm',
+    '13d':'wi-snow',
+    '50d':'wi-fog',
+    '01n':'wi-night-clear',
+    '02n':'wi-night-cloudy',
+    '03n':'wi-night-cloudy',
+    '04n':'wi-night-cloudy',
+    '09n':'wi-night-showers',
+    '10n':'wi-night-rain',
+    '11n':'wi-night-thunderstorm',
+    '13n':'wi-night-snow',
+    '50n':'wi-night-alt-cloudy-windy'
 };
-
-function roundVal(temp)
-{
-	return Math.round(temp * 10) / 10;
-}
-
-function kmh2beaufort(kmh)
-{
-	var speeds = [1, 5, 11, 19, 28, 38, 49, 61, 74, 88, 102, 117, 1000];
-	for (var beaufort in speeds) {
-		var speed = speeds[beaufort];
-		if (speed > kmh) {
-			return beaufort;
-		}
-	}
-	return 12;
-}
-
-jQuery(document).ready(function($) {
-
-	var news = [];
-	var newsIndex = 0;
-
-	var eventList = [];
-
-	var lastCompliment;
-	var compliment;
-
-    moment.lang(lang);
-
-	//connect do Xbee monitor
-	// var socket = io.connect('http://rpi-alarm.local:8082');
-	// socket.on('dishwasher', function (dishwasherReady) {
-	// 	if (dishwasherReady) {
-	// 		$('.dishwasher').fadeIn(2000);
-	// 		$('.lower-third').fadeOut(2000);
-	// 	} else {
-	// 		$('.dishwasher').fadeOut(2000);
-	// 		$('.lower-third').fadeIn(2000);
-	// 	}
-	// });
-
-
-	(function checkVersion()
-	{
-		$.getJSON('githash.php', {}, function(json, textStatus) {
-			if (json) {
-				if (json.gitHash != gitHash) {
-					window.location.reload();
-					window.location.href=window.location.href;
-				}
-			}
-		});
-		setTimeout(function() {
-			checkVersion();
-		}, 3000);
-	})();
-
-	(function updateCalendarData()
-	{
-		new ical_parser("calendar.php", function(cal){
-        	events = cal.getEvents();
-        	eventList = [];
-
-        	for (var i in events) {
-        		var e = events[i];
-        		for (var key in e) {
-        			var value = e[key];
-					var seperator = key.search(';');
-					if (seperator >= 0) {
-						var mainKey = key.substring(0,seperator);
-						var subKey = key.substring(seperator+1);
-
-						var dt;
-						if (subKey == 'VALUE=DATE') {
-							//date
-							dt = new Date(value.substring(0,4), value.substring(4,6) - 1, value.substring(6,8));
-						} else {
-							//time
-							dt = new Date(value.substring(0,4), value.substring(4,6) - 1, value.substring(6,8), value.substring(9,11), value.substring(11,13), value.substring(13,15));
-						}
-
-						if (mainKey == 'DTSTART') e.startDate = dt;
-						if (mainKey == 'DTEND') e.endDate = dt;
-					}
-        		}
-
-                if (e.startDate == undefined){
-                    //some old events in Gmail Calendar is "start_date"
-                    //FIXME: problems with Gmail's TimeZone
-            		var days = moment(e.DTSTART).diff(moment(), 'days');
-            		var seconds = moment(e.DTSTART).diff(moment(), 'seconds');
-                    var startDate = moment(e.DTSTART);
+var app = angular.module('mirror', ['ngAnimate']);
+app.controller('init', function ($scope) {});
+app.controller('TimeCtrl', function ($scope, $interval) {
+    var tick = function () {
+        $scope.clock = new Date();
+    }
+    tick();
+    $interval(tick, 1000);
+});
+app.controller('CalCtrl', function ($scope, $interval, $http) {
+    var update = function () {
+        if (typeof calendarFeed == 'undefined') {
+            return false;
+        }
+        $http.get('calendar.php?url=' + encodeURIComponent(calendarFeed)).
+            then(function (response) {
+                if ('OK' == response.statusText) {
+                    console.log(response.data);
                 } else {
-            		var days = moment(e.startDate).diff(moment(), 'days');
-            		var seconds = moment(e.startDate).diff(moment(), 'seconds');
-                    var startDate = moment(e.startDate);
+                    console.log(response.statusText);
                 }
+            }, function (response) {
+                console.log('error');
+                console.log(response);
+            });
+    }
+    update();
+    $interval(update, 60000);
+});
+app.controller('FuzzyCtrl', function ($scope, $interval, $timeout) {
+    $scope.compliment = '';
+    var warmFuzzy = function () {
+        var compliment;
+        var compliments;
+        var date = new Date();
+        var hour = date.getHours();
+        if (3 <= hour && hour < 12) {
+            compliments = morning;
+        } else if (12 <= hour && hour < 17) {
+            compliments = afternoon;
+        } else {
+            compliments = evening;
+        }
 
-        		//only add fututre events, days doesn't work, we need to check seconds
-        		if (seconds >= 0) {
-                    if (seconds <= 60*60*5 || seconds >= 60*60*24*2) {
-                        var time_string = moment(startDate).fromNow();
-                    }else {
-                        var time_string = moment(startDate).calendar()
-                    }
-                    if (!e.RRULE) {
-    	        		eventList.push({'description':e.SUMMARY,'seconds':seconds,'days':time_string});
-                    }
-                    e.seconds = seconds;
-        		}
-                
-                // Special handling for rrule events
-                if (e.RRULE) {
-                    var options = new RRule.parseString(e.RRULE);
-                    options.dtstart = e.startDate;
-                    var rule = new RRule(options);
-                    
-                    // TODO: don't use fixed end date here, use something like now() + 1 year
-                    var dates = rule.between(new Date(), new Date(2016,11,31), true, function (date, i){return i < 10});
-                    for (date in dates) {
-                        var dt = new Date(dates[date]);
-                        var days = moment(dt).diff(moment(), 'days');
-                        var seconds = moment(dt).diff(moment(), 'seconds');
-                        var startDate = moment(dt);
-                     	if (seconds >= 0) {
-                            if (seconds <= 60*60*5 || seconds >= 60*60*24*2) {
-                                var time_string = moment(dt).fromNow();
-                            } else {
-                                var time_string = moment(dt).calendar()
-                            }
-                            eventList.push({'description':e.SUMMARY,'seconds':seconds,'days':time_string});
-                        }           
-                    }
-                }
-            };
-        	eventList.sort(function(a,b){return a.seconds-b.seconds});
+        do {
+            compliment = Math.floor(Math.random() * compliments.length);
+        } while ($scope.compliment == compliments[compliment]);
 
-        	setTimeout(function() {
-        		updateCalendarData();
-        	}, 60000);
-    	});
-	})();
-
-	(function updateCalendar()
-	{
-		table = $('<table/>').addClass('xsmall').addClass('calendar-table');
-		opacity = 1;
-
-
-		for (var i in eventList) {
-			var e = eventList[i];
-
-			var row = $('<tr/>').css('opacity',opacity);
-			row.append($('<td/>').html(e.description).addClass('description'));
-			row.append($('<td/>').html(e.days).addClass('days dimmed'));
-			table.append(row);
-
-			opacity -= 1 / eventList.length;
-		}
-
-		$('.calendar').updateWithText(table,1000);
-
-		setTimeout(function() {
-        	updateCalendar();
+        $scope.show = false;
+        $timeout(function () {
+            $scope.compliment = compliments[compliment];
+            $scope.show = true;
         }, 1000);
-	})();
+    }
+    $timeout(warmFuzzy, 2500);
+    $interval(warmFuzzy, 30000);
+});
+app.controller('WeatherCtrl', function ($scope, $http, $interval, $timeout) {
+    var weather = function () {
+        $http({
+            method: 'get',
+            url: 'http://api.openweathermap.org/data/2.5/weather',
+            params: weatherParams
+        }).then(function (response) {
+            if (response && response.data && response.data.main) {
+                var temp = {
+                    'temp': Math.round(response.data.main.temp * 10) / 10,
+                    'min': Math.round(response.data.main.temp_min * 10) / 10,
+                    'max': Math.round(response.data.main.temp_max * 10) / 10,
+                    'icon': iconTable[response.data.weather[0].icon]
+                };
+                $scope.temp = temp;
 
-	(function fetchNews() {
-		$.feedToJson({
-			feed: feed,
-			success: function(data){
-				news = [];
-				for (var i in data.item) {
-					var item = data.item[i];
-					news.push(item.title);
-				}
-			}
-		});
-		setTimeout(function() {
-			fetchNews();
-		}, 60000);
-	})();
+                var sun = {
+                    'sunrise': new Date(response.data.sys.sunrise * 1000),
+                    'sunset': new Date(response.data.sys.sunset * 1000),
+                    'now': new Date(),
+                    'sunriseStyle': {
+                        opacity: 0.5
+                    },
+                    'sunsetStyle': {
+                        opacity: 0.5
+                    }
+                };
+                if (sun.now < sun.sunrise) {
+                    sun.sunriseStyle.opacity = 1;
+                } else if (sun.now < sun.sunset) {
+                    sun.sunsetStyle.opacity = 1;
+                }
+                $scope.sun = sun;
+            }
+            $scope.show = true;
+        }, function (response) {
+            console.log(response);
+        });
+    }
 
-	(function showNews() {
-		var newsItem = news[newsIndex];
-		$('.news').updateWithText(newsItem,2000);
-
-		newsIndex--;
-		if (newsIndex < 0) newsIndex = news.length - 1;
-		setTimeout(function() {
-			showNews();
-		}, 5500);
-	})();
-
+    var forecast = function () {
+        $http({
+            method: 'get',
+            url: 'http://api.openweathermap.org/data/2.5/forecast/daily',
+            params: weatherParams
+        }).then(function (response) {
+            if (response && response.data && response.data.list) {
+                var forecastData = [];
+                for (var i in response.data.list) {
+                    var row = response.data.list[i];
+                    forecastData.push({
+                        'timestamp': row.dt,
+                        'date': new Date(row.dt * 1000),
+                        'icon': iconTable[row.weather[0].icon],
+                        'temp_min': Math.round(row.temp.min * 10) / 10,
+                        'temp_max': Math.round(row.temp.max * 10) / 10
+                    });
+                }
+                $scope.forecast = forecastData;
+            }
+        }, function (response) {
+            console.log('error');
+            console.log(response);
+        });
+    }
+    forecast();
+    weather();
+    $interval(function () {
+        forecast();
+        weather();
+    }, 60000);
+});
+app.controller('NewsCtrl', ['$scope', '$interval', '$timeout', 'FeedService', function ($scope, $interval, $timeout, Feed) {
+    var stories = [];
+    var headline = 0;
+    var update = function () {
+        stories = [];
+        headline = 0;
+        Feed.parseFeed(feed).
+            then(function (response) {
+                for (var i in response.data.responseData.feed.entries) {
+                    if (response.data.responseData.feed.entries[i].title) {
+                        stories.push(response.data.responseData.feed.entries[i].title);
+                    }
+                }
+            }, function (response) {
+                console.log('error');
+                console.log(response);
+            });
+    };
+    var rotate = function () {
+        $scope.show = false;
+        if (stories.length) {
+            $timeout(function () {
+                $scope.news = stories[headline++ % stories.length];
+                $scope.show = true;
+            }, 1000);
+        }
+    };
+    update();
+    $interval(update, 300000);
+    $interval(rotate, 5500);
+}]);
+app.factory('FeedService', ['$http', function ($http) {
+    return {
+        parseFeed: function (url) {
+            return $http.jsonp('https://ajax.googleapis.com/ajax/services/feed/load?v=1.0&callback=JSON_CALLBACK&q=' + encodeURIComponent(url));
+        }
+    };
+}]);
+app.animation('.fade', function () {
+    return {
+        addClass: function (element, className, doneFn) {
+            jQuery(element).fadeOut(1000, doneFn);
+        },
+        removeClass: function (element, className, doneFn) {
+            element.css('display', 'none');
+            jQuery(element).fadeIn(1000, doneFn);
+        }
+    };
 });

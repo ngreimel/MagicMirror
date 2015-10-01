@@ -194,15 +194,6 @@ body, html {
 	display: none;
 }
 
-.fade {
-    transition: 0.5s linear all;
-}
-.fade.ng-hide, .fade.ng-enter, .fade.ng-leave.ng-leave-active {
-    opacity: 0;
-}
-.fade.ng-enter.ng-enter-active, .fade.ng-leave {
-    opacity: 1;
-}
 
 @font-face {
   font-family: 'HelveticaNeue-UltraLight';
