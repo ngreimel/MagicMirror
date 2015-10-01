@@ -21,7 +21,19 @@ var iconTable = {
     '50n':'wi-night-alt-cloudy-windy'
 };
 var app = angular.module('mirror', ['ngAnimate']);
-app.controller('init', function ($scope) {});
+app.controller('init', function ($scope, $http, $interval) {
+    var checkVersion = function () {
+        $http.get('githash.php').
+            then(function (response) {
+                if (response && response.data && response.data.gitHash != gitHash) {
+                    window.location.reload();
+                    window.location.href = window.location.href;
+                }
+            }, function (response) {}
+            );
+    };
+    $interval(checkVersion, 5000);
+});
 app.controller('TimeCtrl', function ($scope, $interval) {
     var tick = function () {
         $scope.clock = new Date();
