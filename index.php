@@ -28,11 +28,11 @@
       <div class="fade" ng-controller="WeatherCtrl" ng-show="show">
         <div class="windsun small dimmed">
           <span ng-style="sun.sunriseStyle">
-            <span class="wi wi-sunrise xdimmed"></span> 
+            <span ng-class="[ 'wi', 'wi-sunrise', 'xdimmed' ]"></span> 
             <span ng-bind="sun.sunrise | date: 'HH:mm'"></span>
           </span>
           <span ng-style="sun.sunsetStyle">
-            <span class="wi wi-sunset xdimmed"></span> 
+            <span ng-class="[ 'wi', 'wi-sunset', 'xdimmed' ]"></span> 
             <span ng-bind="sun.sunset | date: 'HH:mm'"></span>
           </span>
         </div>
