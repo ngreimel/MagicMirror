@@ -3,12 +3,15 @@ var lang = window.navigator.language;
 // you can change the language
 // var lang = 'en';
 
+var apikey = 'b5d537cc83afcc28291190d015656779';
+
 //change weather params here:
 //units: metric or imperial
 var weatherParams = {
     'q':'Minneapolis, MN',
     'units':'imperial',
-    'lang':lang
+    'lang':lang,
+    'APPID':apikey
 };
 
 //var feed = 'http://feeds.nos.nl/nosjournaal?format=rss';
