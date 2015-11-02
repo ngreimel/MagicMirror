@@ -2,12 +2,17 @@
 	
 	// Set the url of the calendar feed.
 	//$url = 'https://p01-calendarws.icloud.com/ca/subscribe/1/n6x7Farxpt7m9S8bHg1TGArSj7J6kanm_2KEoJPL5YIAk3y70FpRo4GyWwO-6QfHSY5mXtHcRGVxYZUf7U3HPDOTG5x0qYnno1Zr_VuKH2M';
-	$url = '';
+    $url = isset($_REQUEST['url']) ? $_REQUEST['url'] : '';
 
 	/*****************************************/
 
-	// Run the helper function with the desired URL and echo the contents.
-	echo get_url($url);
+	// Run the helper function with the desired URL and save the contents.
+	$data = get_url($url);
+
+    include 'class.iCalReader.php';
+    $cal = new ICal(preg_split('/$\R?^/m', $data));
+    $events = $cal->eventsFromRange('now', '2 weeks');
+    echo ical2json($events);
 
 	// Define the helper function that retrieved the data and decodes the content.
 	function get_url($url)
@@ -44,3 +49,17 @@
 	     
 	    return $content;
 	}
+
+    function ical2json($cal)
+    {
+        $json = array();
+        foreach ($cal as $event) {
+            $json[] = array_filter($event, function ($v) use (&$event) {
+                $ret = stripos(key($event), '_array') === false;
+                next($event);
+                return $ret;
+            });
+        }
+
+        return json_encode($json);
+    }

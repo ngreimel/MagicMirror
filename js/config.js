@@ -14,6 +14,9 @@ var weatherParams = {
     'APPID':apikey
 };
 
+//change calendar feed here
+var calendarFeed = 'https://www.google.com/calendar/ical/neal%40greimel.us/private-8f31c729b6d1f41e6a8e95fdb801e7b2/basic.ics';
+
 //var feed = 'http://feeds.nos.nl/nosjournaal?format=rss';
 //var feed = 'http://www.nu.nl/feeds/rss/achterklap.rss';
 //var feed = 'http://www.nu.nl/feeds/rss/opmerkelijk.rss';

@@ -20,7 +20,14 @@
         </div>
       </div>
       <div ng-controller="CalCtrl">
-        <div class="calendar xxsmall" ng-bind="calendar"></div>
+        <div class="calendar xxsmall">
+          <table class="calendar-table xsmall">
+            <tr ng-repeat="i in events" ng-style="{ opacity: {{ 1 - $index * 0.155 }} }">
+              <td class="description" ng-bind="i.description"></td>
+              <td class="days dimmed" ng-bind="i.days"></td>
+            </tr>
+          </table>
+        </div>
       </div>
     </div>
 

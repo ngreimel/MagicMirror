@@ -41,7 +41,8 @@ app.controller('TimeCtrl', function ($scope, $interval) {
     tick();
     $interval(tick, 1000);
 });
-app.controller('CalCtrl', function ($scope, $interval, $http) {
+app.controller('CalCtrl', ['$scope', '$interval', '$timeout', '$http', 'MomentService', function ($scope, $interval, $timeout, $http, Moment) {
+    $scope.events = [];
     var update = function () {
         if (typeof calendarFeed == 'undefined') {
             return false;
@@ -49,7 +50,15 @@ app.controller('CalCtrl', function ($scope, $interval, $http) {
         $http.get('calendar.php?url=' + encodeURIComponent(calendarFeed)).
             then(function (response) {
                 if ('OK' == response.statusText) {
-                    console.log(response.data);
+                    var eventList = [];
+                    for (var i in response.data) {
+                        var event = response.data[i];
+                        eventList.push({
+                            description: event.SUMMARY.replace(/\\(.)/mg, "$1"),
+                            days: Moment.fromNow(event.DTSTART)
+                        });
+                    }
+                    $scope.events = eventList;
                 } else {
                     console.log(response.statusText);
                 }
@@ -60,7 +69,7 @@ app.controller('CalCtrl', function ($scope, $interval, $http) {
     }
     update();
     $interval(update, 60000);
-});
+}]);
 app.controller('FuzzyCtrl', function ($scope, $interval, $timeout) {
     $scope.compliment = '';
     var warmFuzzy = function () {
@@ -199,6 +208,78 @@ app.factory('FeedService', ['$http', function ($http) {
         }
     };
 }]);
+app.factory('MomentService', function () {
+    return {
+        fromNow: function (time) {
+            var days = [];
+            days.push('Sunday');
+            days.push('Monday');
+            days.push('Tuesday');
+            days.push('Wednesday');
+            days.push('Thursday');
+            days.push('Friday');
+            days.push('Saturday');
+
+            if (typeof time != 'Date') {
+                var dateString = time.substring(0,4)
+                               + '-' + time.substring(4,6)
+                               + '-' + time.substring(6,8);
+                if (time.length > 8) {
+                    dateString += 'T' + time.substring(9,11)
+                                + ':' + time.substring(11,13)
+                                + ':' + time.substring(13);
+                }
+                time = new Date(dateString);
+            }
+            var now = new Date();
+            var diff = Math.abs(time.getTime() - now.getTime()) / 1000;
+            var ago = time.getTime() < now.getTime() ? ' ago' : '';
+            if (diff < 45) {
+                return 'a few seconds' + ago;
+            } else if (diff < 90) {
+                return 'a minute' + ago;
+            } else if (diff < 45 * 60) {
+                return Math.round(diff / 60) + ' minutes' + ago;
+            } else if (diff < 90 * 60) {
+                return 'an hour' + ago;
+            } else if (diff < 5 * 60 * 60) {
+                return Math.round(diff / 60 / 60) + ' hours' + ago;
+            } else if (diff < 48 * 60 * 60) {
+                var str = '';
+                if (time.getDay() == now.getDay()) {
+                    str = 'Today at ';
+                } else if (diff < 7 * 24 * 60 * 60) {
+                    if ((time.getDay() - now.getDay()) % 7 == 1) {
+                        if (time.getTime() > now.getTime()) {
+                            str = 'Tomorrow at ';
+                        } else {
+                            str = 'Yesterday at ';
+                        }
+                    } else {
+                        if (time.getTime() < now.getTime()) {
+                            str = 'Last ';
+                        }
+                        str += days[time.getDay()] + ' at ';
+                    }
+                } else {
+                    return time.toLocaleDateString();
+                }
+                str += time.toTimeString().substring(0, 5);
+                return str;
+            } else if (diff < 25 * 24 * 60 * 60) {
+                return Math.round(diff / 24 / 60 / 60) + ' days' + ago;
+            } else if (diff < 45 * 24 * 60 * 60) {
+                return 'a month' + ago;
+            } else if (diff < 345 * 24 * 60 * 60) {
+                return Math.round(diff / 30 / 24 / 60 / 60) + ' months' + ago;
+            } else if (diff < 545 * 24 * 60 * 60) {
+                return 'a year' + ago;
+            } else {
+                return Math.round(diff / 365 / 24 / 60 / 60) + ' years' + ago;
+            }
+        }
+    };
+});
 app.animation('.fade', function () {
     return {
         addClass: function (element, className, doneFn) {
